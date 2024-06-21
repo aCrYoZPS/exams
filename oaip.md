@@ -968,10 +968,289 @@ AVL-деревом называется бинарное дерево поиск
 большой левый это правый относительно правого сына потом левый делается когда дельта для сына равна по модулю 1.
 большой правый наоборот, левый отн. левого сына, потом правый. тоже дельта равна 1 по модулю
 #### поиск 
+очевидно как в любом бст
 #### вставка
+ищем место куда вставить, вставляем, рекурсивно обновляем высоту и ребалансим
 #### удаление 
+ищем удаляемый, удаляем, обновляем высоту и ребаланс
+#### код
+```cpp
+//оставь нажежду всяк сюда входящий
+template <typename K, typename V>
+class AVLTree {
+   protected:
+    struct Node {
+        std::pair<K, V> kv;
+        int8_t height_ = 0;
+        Node* left;
+        Node* right;
+
+        Node(K key, V value) {
+            this->kv.first = key;
+            this->kv.second = value;
+            this->left = nullptr;
+            this->right = nullptr;
+        }
+
+        Node(const Node& other) {
+            this->kv = other.kv;
+            this->left = other.left;
+            this->right = other.right;
+            this->height_ = other.height_;
+        }
+    };
+
+    Node* root_ = nullptr;
+
+   public:
+    AVLTree() {}
+
+    void insert(std::pair<K, V> kv_pair) {
+        this->ins(this->root_, kv_pair.first, kv_pair.second);
+    }
+
+    void del(K key) { this->root_ = rmKey(this->root_, key); }
+    /* это забейте, миск
+    QString infTraverse() {
+        QString ans;
+        infixTraverse(this->root_, ans);
+        return ans;
+    }
+
+    QString prefTraverse() {
+        QString ans;
+        prefixTraverse(this->root_, ans);
+        return ans;
+    }
+
+    QString postfTraverse() {
+        QString ans;
+        postfixTraverse(this->root_, ans);
+        return ans;
+    }
+    */
+   private:
+    int8_t height(Node* node) { return (node) ? node->height_ : -1; }
+
+    int32_t balanceFactor(Node* node) {
+        if (node == nullptr) {
+            return 0;
+        }
+        return this->height(node->right) - this->height(node->left);
+    }
+
+    void updateHeight(Node* node) {
+        if (node != nullptr) {
+            node->height_ =
+                std::max(this->height(node->right), this->height(node->left)) +
+                1;
+            updateHeight(node->left);
+            updateHeight(node->right);
+        }
+    }
+
+    void swap(Node* n1, Node* n2) {
+        K n1_key = n1->kv.first;
+        n1->kv.first = n2->kv.first;
+        n2->kv.first = n1_key;
+        V n1_val = n1->kv.second;
+        n1->kv.second = n2->kv.second;
+        n2->kv.second = n1_val;
+    }
+
+    void rotateLeft(Node* node) {
+        swap(node, node->right);
+        Node* q = node->left;
+        node->left = node->right;
+        node->right = node->left->right;
+        node->left->right = node->left->left;
+        node->left->left = q;
+        this->updateHeight(node->left);
+        this->updateHeight(node);
+    }
+
+    void rotateRight(Node* node) {
+        swap(node, node->left);
+        Node* q = node->right;
+        node->right = node->left;
+        node->left = node->right->left;
+        node->right->left = node->right->right;
+        node->right->right = q;
+        this->updateHeight(node->right);
+        this->updateHeight(node);
+    }
+
+    void rebalance(Node* node) {
+        this->updateHeight(node);
+        if (this->balanceFactor(node) == -2) {
+            if (this->balanceFactor(node->left) > 0) {
+                this->rotateLeft(node->left);
+            }
+            this->rotateRight(node);
+            return;
+        }
+        if (this->balanceFactor(node) == 2) {
+            if (this->balanceFactor(node->right) < 0) {
+                this->rotateRight(node->right);
+            }
+            this->rotateLeft(node);
+            return;
+        }
+    }
+
+    void ins(Node*& root, K key, V val) {
+        if (root == nullptr) {
+            root = new Node(key, val);
+            return;
+        }
+        if (key < root->kv.first) {
+            ins(root->left, key, val);
+        } else {
+            ins(root->right, key, val);
+        }
+        rebalance(root);
+    }
+
+    Node* min(Node* node) {
+        return (node->left != nullptr) ? this->min(node->left) : node;
+    }
+
+    Node* max(Node* node) {
+        return (node->right != nullptr) ? this->max(node->right) : node;
+    }
+
+    Node* rmMin(Node* node) {
+        if (node->left == nullptr) {
+            return node->right;
+        }
+        node->left = this->rmMin(node->left);
+        return this->rebalance(node);
+    }
+
+    Node* rmKey(Node* node, K key) {
+        if (node == nullptr) {
+            return nullptr;
+        }
+        if (key < node->kv.first) {
+            node->left = this->rmKey(node->left, key);
+        } else if (key > node->kv.first) {
+            node->right = this->rmKey(node->right, key);
+        } else {
+            if (node->left == nullptr || node->right == nullptr) {
+                node = (node->left == nullptr) ? node->right : node->left;
+            } else {
+                Node* max_left = this->max(node->left);
+                swap(node, max_left);
+                node->left = rmKey(node->left, max_left->kv.first);
+            }
+        }
+        rebalance(node);
+        return node;
+    }
+
+    Node* find(Node* root, K key) {
+        if (root == nullptr) {
+            return nullptr;
+        }
+        if (key == root->kv.first) {
+            return root;
+        }
+        if (key < root->kv.first) {
+            return find(root->left, key);
+        }
+        return find(root->right, key);
+    }
+
+    void infixTraverse(Node* root, QString& elems) {
+        if (root == nullptr) {
+            return;
+        }
+        infixTraverse(root->left, elems);
+        elems += root->kv.second + " ";
+        infixTraverse(root->right, elems);
+    }
+
+    void prefixTraverse(Node* root, QString& elems) {
+        if (root == nullptr) {
+            return;
+        }
+        elems += root->kv.second + " ";
+        prefixTraverse(root->left, elems);
+        prefixTraverse(root->right, elems);
+    }
+
+    void postfixTraverse(Node* root, QString& elems) {
+        if (root == nullptr) {
+            return;
+        }
+        postfixTraverse(root->left, elems);
+        postfixTraverse(root->right, elems);
+        elems += root->kv.second + " ";
+    }
+};
+```
 ### RBT
-### 2-3 
+Красно-черным деревом называется самобалансирующееся бинарное дерево поиска, для которого определены следующие правила:
+1. каждая нода либо красная либо черная
+2. все несуществующие ноды (т.е. нуллптры в листьях) считаются черными
+3. красная нода не может иметь красных детей
+4. черная высота каждого поддерева вершины должна быть одинаковой.
+5. (следствие) если у ноды 1 ребенок, то он красный, иначе черная высота не совпадет
+Пятое правило разнится, например можно сказать, что корень всегда черный, хотя его цвет не влияет на черную высоту, если все дети черные, то рут может быть и красным.
+Значит путь от рута до самого дальнего листа не более чем вдвое длиннее чем до самого ближнего т.к. черная высота и дерево +- сбалансировано.
+Поиск и повороты такие же самые, но есть только малые.
+#### Вставка (че толку никто это не запомнит все равно)
+Вставляем всегда красную ноду т.к. вставка черной гарантированно рушит черную высоту.
+##### случай 1
+Вешаем красную на черную. Все супер.
+##### случай 2
+Если отец и дядя красные, то поднимаем красный цвет в деда и смотрим дальше, т.к могло что-то там сломаться
+
+![case2](./oaip_imgs/rbt_insert_case2.png) 
+##### случай 3
+Если дошли до рута из случая 2 то все заебись
+##### случай 4
+Если отец красный и рут, то делаем его черным 
+##### случай 5
+Если дядя черный, а связь между отцом и сыном не в ту же сторону, что между дедом и отцом, то делаем поворот и переходим к случаю 6.
+
+![case5](./oaip_imgs/rbt_case5_2.png) 
+##### случай 6
+![case6](./oaip_imgs/rbt_insert_case6.png) 
+#### Удаление 
+Тут людей ебут
+##### случаи простые
+- удаляем рут без детей. Очевидно как
+- удаляем ноду с 2 детьми -- заменяем ее на следющий ключ (самый левый ребенок правого поддерева) и удаляем его. Он имеет не более 1 ребенка.
+- удляем ноду с 1 ребенком -- заменяем ее ребенком и красим в черный.
+- удаляем красную ноду без детей -- похуй, просто удаляем.
+- удаляем черную ноду без детей -- пиздец.
+заменяем ее на нулл у родителя, а дальше...
+(рассматриваем текущую ноду, т.е. мы можем выше подняться)
+##### случай 1
+если текущая нода это рут, то мы удалили все что хотели
+##### случай 2
+Если родитель черный, брат черный и все дети брата черные, то ~~вы негр~~ красим брата в красный. Теперь в поддереве с корнем в отце текущей ноды на 1 меньше черная высота, но в другом поддереве может быть не так, поэтому поднимаемся выше (N = N->parrent)
+
+![del2](./oaip_imgs/rbt_del_2.png) 
+##### случай 3
+Если брат красный а все остальные черные, делаем поворот P (теперь брат -- корень поддерева), красим его в черный а родителя в красный. Теперь бывший ближний племянник стал братом, смотрим его детей и переходим в 4, 5 или 6 случай.
+
+![del3](./oaip_imgs/rbt_del_3.png) 
+##### случай 4
+Если дети черные то красим родителя в черный а брата в красный.
+
+![del3](./oaip_imgs/rbt_del_4.png) 
+##### случай 5
+если ближний племянник красный, то поворачиваем так чтобы он стал братом, спускаем на 1 слой вниз красный цвет и идем в 6 случай.
+
+![del3](./oaip_imgs/rbt_del_5.png) 
+##### случай 6
+Если дальний племянник красный, то поворачиваем так, чтобы брат стал корнем поддерева,красим дальнего племянника и родителя в черный, а брата в цвет родителя.
+
+![del3](./oaip_imgs/rbt_del_6.png) 
+
+Вообще рофл рбт в том, что в отличие от АВЛ мы делаем не лог вращений, а константу (<= 2 при вставке и <= 3 при удалении).
 >хватит и этих
 
 ## 33. Графы и возможные формы их описания. Нахождение кратчайшего пути на графе.
